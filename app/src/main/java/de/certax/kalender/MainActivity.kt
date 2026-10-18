@@ -504,18 +504,18 @@ private fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit, onRequestPermi
 
             item { SectionTitle("Geburtstage (Kontakte)") }
             item {
-                SwitchRow("Kontakt-Geburtstage anzeigen", "${vm.birthdayCount} Geburtstage gefunden", vm.showBirthdays) { vm.setShowBirthdays(it) }
+                SwitchRow("Kontakt-Geburtstage anzeigen", "${vm.birthdayCount} Geburtstage gefunden", vm.showBirthdays) { vm.changeShowBirthdays(it) }
             }
             item {
-                SwitchRow("Nur Google-Kontakte", "Kontakte aus Samsung-Konto / Telefon ausblenden", vm.onlyGoogleBirthdays) { vm.setOnlyGoogle(it) }
+                SwitchRow("Nur Google-Kontakte", "Kontakte aus Samsung-Konto / Telefon ausblenden", vm.onlyGoogleBirthdays) { vm.changeOnlyGoogle(it) }
             }
 
             item { SectionTitle("Samsung Aufgaben") }
             item {
-                SwitchRow("Aufgaben im Kalender anzeigen", "Status: ${vm.taskStatus}", vm.showTasks) { vm.setShowTasks(it) }
+                SwitchRow("Aufgaben im Kalender anzeigen", "Status: ${vm.taskStatus}", vm.showTasks) { vm.changeShowTasks(it) }
             }
             item {
-                SwitchRow("Erledigte Aufgaben anzeigen", null, vm.showDoneTasks) { vm.setShowDone(it) }
+                SwitchRow("Erledigte Aufgaben anzeigen", null, vm.showDoneTasks) { vm.changeShowDone(it) }
             }
 
             item { SectionTitle("Kalender") }

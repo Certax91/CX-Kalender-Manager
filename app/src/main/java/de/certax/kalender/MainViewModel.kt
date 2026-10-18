@@ -177,8 +177,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         refreshEntries()
     }
 
-    fun setShowBirthdays(v: Boolean) { showBirthdays = v; prefs.showBirthdays = v; refreshEntries() }
-    fun setOnlyGoogle(v: Boolean) { onlyGoogleBirthdays = v; prefs.onlyGoogleBirthdays = v; reloadAll() }
-    fun setShowTasks(v: Boolean) { showTasks = v; prefs.showTasks = v; refreshEntries() }
-    fun setShowDone(v: Boolean) { showDoneTasks = v; prefs.showDoneTasks = v; refreshEntries() }
+    fun changeShowBirthdays(v: Boolean) { showBirthdays = v; prefs.showBirthdays = v; refreshEntries() }
+    fun changeOnlyGoogle(v: Boolean) { onlyGoogleBirthdays = v; prefs.onlyGoogleBirthdays = v; reloadAll() }
+    fun changeShowTasks(v: Boolean) { showTasks = v; prefs.showTasks = v; refreshEntries() }
+    fun changeShowDone(v: Boolean) { showDoneTasks = v; prefs.showDoneTasks = v; refreshEntries() }
 }
