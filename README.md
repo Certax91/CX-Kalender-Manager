@@ -6,9 +6,15 @@ Android-Kalender, der alles an einem Ort zeigt:
 - **Geburtstage aus den Google-Kontakten**
 - **Samsung Aufgaben** (aus dem Samsung Kalender)
 
-Ansichten: Monat (wischen zum Blättern), Liste der nächsten 120 Tage, Aufgaben.
-In den Einstellungen lässt sich jeder Kalender einzeln ein- und ausblenden.
-Die App liest nur – Termine werden zum Bearbeiten in der Kalender-App geöffnet.
+Aufbau wie der Samsung Kalender:
+
+- **Ansichten:** Jahr, Monat, Woche, Tag, Termine (Liste), Aufgaben – umschalten über das Menü ☰
+- **Blättern** durch Wischen nach links/rechts, **Heute-Knopf** oben rechts
+- **Monat:** 1. Tipp wählt den Tag, 2. Tipp öffnet die Tagesansicht; Tipp auf den Titel geht eine Ebene höher
+- **Woche/Tag:** Zeitraster mit aktueller Uhrzeit; Tipp auf eine freie Stunde legt dort einen Termin an
+- **Neuer Termin** über den ＋-Knopf: Titel, Kalender, ganztägig, Beginn/Ende, Wiederholung, Erinnerung, Ort, Notiz
+- Termine **bearbeiten und löschen** (bei Serien: nur dieser oder alle)
+- In „Kalender verwalten“ lässt sich jeder Kalender einzeln ein- und ausblenden
 
 ## Installieren
 

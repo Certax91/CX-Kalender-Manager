@@ -34,6 +34,8 @@ data class Entry(
     val endMillis: Long = 0,
     val contactId: Long? = null,
     val completed: Boolean = false,
+    val calendarId: Long? = null,
+    val recurring: Boolean = false,
 ) {
     val allDay get() = startTime == null
     fun occursOn(d: LocalDate) = !d.isBefore(startDate) && !d.isAfter(endDate)
@@ -46,6 +48,7 @@ data class CalendarInfo(
     val accountType: String,
     val color: Int,
     val isContactsBirthday: Boolean,
+    val writable: Boolean = false,
 )
 
 data class Birthday(
@@ -94,6 +97,7 @@ class Repository(context: Context) {
             CalendarContract.Calendars.ACCOUNT_TYPE,
             CalendarContract.Calendars.CALENDAR_COLOR,
             CalendarContract.Calendars.OWNER_ACCOUNT,
+            CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL,
         )
         cr.query(CalendarContract.Calendars.CONTENT_URI, proj, null, null, null)?.use { c ->
             while (c.moveToNext()) {
@@ -107,6 +111,9 @@ class Repository(context: Context) {
                     color = c.int(CalendarContract.Calendars.CALENDAR_COLOR) ?: 0xFF1F5FBF.toInt(),
                     isContactsBirthday = owner.contains("#contacts@") ||
                         owner.contains("addressbook#contacts"),
+                    writable = (c.int(CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL) ?: 0) >=
+                        CalendarContract.Calendars.CAL_ACCESS_CONTRIBUTOR &&
+                        !owner.contains("#contacts@") && !owner.contains("#holiday@"),
                 )
             }
         }
@@ -132,6 +139,7 @@ class Repository(context: Context) {
             CalendarContract.Instances.EVENT_LOCATION,
             CalendarContract.Instances.DESCRIPTION,
             CalendarContract.Instances.CALENDAR_DISPLAY_NAME,
+            CalendarContract.Instances.RRULE,
         )
         val out = mutableListOf<Entry>()
         cr.query(uri, proj, null, null, "${CalendarContract.Instances.BEGIN} ASC")?.use { c ->
@@ -152,7 +160,8 @@ class Repository(context: Context) {
                         c.int(CalendarContract.Instances.DISPLAY_COLOR) ?: 0xFF1F5FBF.toInt(),
                         SourceType.CALENDAR, c.str(CalendarContract.Instances.CALENDAR_DISPLAY_NAME) ?: "",
                         c.str(CalendarContract.Instances.EVENT_LOCATION), c.str(CalendarContract.Instances.DESCRIPTION),
-                        eventId, b, e)
+                        eventId, b, e, calendarId = calId,
+                        recurring = !c.str(CalendarContract.Instances.RRULE).isNullOrBlank())
                 } else {
                     val st = LocalDateTime.ofInstant(Instant.ofEpochMilli(b), zone)
                     val et = LocalDateTime.ofInstant(Instant.ofEpochMilli(maxOf(e, b)), zone)
@@ -163,7 +172,8 @@ class Repository(context: Context) {
                         c.int(CalendarContract.Instances.DISPLAY_COLOR) ?: 0xFF1F5FBF.toInt(),
                         SourceType.CALENDAR, c.str(CalendarContract.Instances.CALENDAR_DISPLAY_NAME) ?: "",
                         c.str(CalendarContract.Instances.EVENT_LOCATION), c.str(CalendarContract.Instances.DESCRIPTION),
-                        eventId, b, e)
+                        eventId, b, e, calendarId = calId,
+                        recurring = !c.str(CalendarContract.Instances.RRULE).isNullOrBlank())
                 }
                 if (!entry.endDate.isBefore(from) && !entry.startDate.isAfter(to)) out += entry
             }
