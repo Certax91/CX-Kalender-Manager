@@ -31,6 +31,9 @@ class Prefs(context: Context) {
     var showTasks: Boolean
         get() = sp.getBoolean("tasks", true)
         set(v) = sp.edit().putBoolean("tasks", v).apply()
+    var showReminders: Boolean
+        get() = sp.getBoolean("reminders", true)
+        set(v) = sp.edit().putBoolean("reminders", v).apply()
     var showDoneTasks: Boolean
         get() = sp.getBoolean("tasks_done", true)
         set(v) = sp.edit().putBoolean("tasks_done", v).apply()
@@ -61,10 +64,12 @@ private class LoadResult(
     val tasks: List<Task>,
     val taskStatus: String,
     val birthdays: List<Birthday>,
+    val reminders: ReminderProbe.Result,
 )
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val repo = Repository(app)
+    private val probe = ReminderProbe(app)
     val store = EventStore(app.contentResolver)
     val prefs = Prefs(app)
 
@@ -86,6 +91,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     var onlyGoogleBirthdays by mutableStateOf(prefs.onlyGoogleBirthdays)
     var showTasks by mutableStateOf(prefs.showTasks)
     var showDoneTasks by mutableStateOf(prefs.showDoneTasks)
+    var showReminders by mutableStateOf(prefs.showReminders)
+    var reminders by mutableStateOf<List<ReminderProbe.Reminder>>(emptyList())
+    var reminderStatus by mutableStateOf("noch nicht geprüft")
+    var reminderReport by mutableStateOf("")
 
     /** Einträge für den sichtbaren Zeitraum der aktuellen Ansicht. */
     var entries by mutableStateOf<List<Entry>>(emptyList())
@@ -118,6 +127,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             if (hasCalendarPermission) all += repo.loadEvents(from, to, ids)
             all += birthdayEntries(birthdays, LocalDate.now(), LocalDate.now().plusYears(1).minusDays(1))
             all += taskEntries(tasks, from, to, true)
+            all += reminderEntries(reminders, from, to, true)
             all.filter {
                 it.title.contains(q, true) || (it.location?.contains(q, true) == true) ||
                     (it.description?.contains(q, true) == true)
@@ -164,7 +174,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     val b = if (conPerm) {
                         try { repo.loadBirthdays(onlyGoogle) } catch (_: Exception) { emptyList() }
                     } else emptyList()
-                    LoadResult(cals, prefs.hiddenCalendars, t.first, t.second, b)
+                    val rem = try { probe.run() } catch (e: Exception) {
+                        ReminderProbe.Result(emptyList(), "Fehler: ${e.message}", e.stackTraceToString().take(2000))
+                    }
+                    LoadResult(cals, prefs.hiddenCalendars, t.first, t.second, b, rem)
                 }
                 calendars = r.calendars
                 hidden = r.hidden
@@ -172,6 +185,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 taskStatus = r.taskStatus
                 birthdays = r.birthdays
                 birthdayCount = r.birthdays.size
+                reminders = r.reminders.reminders
+                reminderStatus = r.reminders.status
+                reminderReport = r.reminders.report
                 refreshEntries()
             } catch (e: Exception) {
                 error = e.message ?: e.javaClass.simpleName
@@ -224,6 +240,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         if (hasCalendarPermission) list += repo.loadEvents(from, to, ids)
         if (showBirthdays) list += birthdayEntries(birthdays, from, to)
         if (showTasks) list += taskEntries(tasks, from, to, showDoneTasks)
+        if (showReminders) list += reminderEntries(reminders, from, to, showDoneTasks)
         return list
     }
 
@@ -288,6 +305,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun changeShowBirthdays(v: Boolean) { showBirthdays = v; prefs.showBirthdays = v; refreshEntries() }
     fun changeOnlyGoogle(v: Boolean) { onlyGoogleBirthdays = v; prefs.onlyGoogleBirthdays = v; reloadAll() }
     fun changeShowTasks(v: Boolean) { showTasks = v; prefs.showTasks = v; refreshEntries() }
+    fun changeShowReminders(v: Boolean) { showReminders = v; prefs.showReminders = v; refreshEntries() }
     fun changeShowDone(v: Boolean) { showDoneTasks = v; prefs.showDoneTasks = v; refreshEntries() }
 
     // ---------------- Termine bearbeiten ----------------

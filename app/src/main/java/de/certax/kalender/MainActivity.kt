@@ -22,6 +22,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -476,6 +478,36 @@ private fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit, onRequestPermi
             }
             item {
                 SwitchRow("Erledigte Aufgaben anzeigen", null, vm.showDoneTasks) { vm.changeShowDone(it) }
+            }
+
+            item { SectionTitle("Erinnerungen (Samsung Reminder)") }
+            item {
+                SwitchRow("Erinnerungen anzeigen", "Status: ${vm.reminderStatus}", vm.showReminders) { vm.changeShowReminders(it) }
+            }
+            item {
+                var showReport by remember { mutableStateOf(false) }
+                TextButton(onClick = { showReport = true }, modifier = Modifier.padding(horizontal = 8.dp)) { Text("Diagnose anzeigen") }
+                if (showReport) {
+                    val clip = androidx.compose.ui.platform.LocalClipboardManager.current
+                    AlertDialog(
+                        onDismissRequest = { showReport = false },
+                        title = { Text("Reminder-Diagnose") },
+                        text = {
+                            Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+                                Text(vm.reminderStatus, fontWeight = FontWeight.SemiBold)
+                                Spacer(Modifier.height(8.dp))
+                                Text(vm.reminderReport.ifBlank { "Noch keine Daten" }, fontSize = 12.sp)
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                clip.setText(androidx.compose.ui.text.AnnotatedString(vm.reminderStatus + "\n" + vm.reminderReport))
+                                Toast.makeText(ctx, "Kopiert", Toast.LENGTH_SHORT).show()
+                            }) { Text("Kopieren") }
+                        },
+                        dismissButton = { TextButton(onClick = { showReport = false }) { Text("Schließen") } }
+                    )
+                }
             }
 
             item { SectionTitle("Kalender") }

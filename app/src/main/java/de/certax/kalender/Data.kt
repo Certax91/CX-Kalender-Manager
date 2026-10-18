@@ -328,6 +328,21 @@ fun taskEntries(list: List<Task>, from: LocalDate, to: LocalDate, showDone: Bool
             )
         }
 
+fun reminderEntries(list: List<ReminderProbe.Reminder>, from: LocalDate, to: LocalDate, showDone: Boolean): List<Entry> =
+    list.filter { it.time != null && (showDone || !it.completed) }
+        .filter { val d = it.time!!.toLocalDate(); !d.isBefore(from) && !d.isAfter(to) }
+        .map {
+            val t = it.time!!
+            Entry(
+                key = "r${it.id}", title = it.title,
+                startDate = t.toLocalDate(), endDate = t.toLocalDate(),
+                startTime = null, endTime = null,
+                color = COLOR_TASK, source = SourceType.TASK, sourceName = "Samsung Reminder",
+                description = if (!it.allDay) "Erinnerung um " + t.format(Repository.TIME) + " Uhr" else null,
+                completed = it.completed,
+            )
+        }
+
 /** Sortierung innerhalb eines Tages: Geburtstage, ganztägig, Aufgaben, dann nach Uhrzeit. */
 fun List<Entry>.sortedForDay(): List<Entry> = sortedWith(
     compareBy<Entry>(
