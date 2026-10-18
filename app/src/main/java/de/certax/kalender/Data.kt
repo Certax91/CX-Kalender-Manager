@@ -49,6 +49,7 @@ data class CalendarInfo(
     val color: Int,
     val isContactsBirthday: Boolean,
     val writable: Boolean = false,
+    val isHoliday: Boolean = false,
 )
 
 data class Birthday(
@@ -79,8 +80,8 @@ private fun Cursor.int(col: String): Int? {
     val i = getColumnIndex(col); return if (i >= 0 && !isNull(i)) getInt(i) else null
 }
 
-const val COLOR_BIRTHDAY = 0xFFE91E63.toInt()
-const val COLOR_TASK = 0xFF43A047.toInt()
+const val COLOR_BIRTHDAY = 0xFFA8801E.toInt()
+const val COLOR_TASK = 0xFF3A8A86.toInt()
 
 class Repository(context: Context) {
     private val cr: ContentResolver = context.contentResolver
@@ -114,6 +115,8 @@ class Repository(context: Context) {
                     writable = (c.int(CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL) ?: 0) >=
                         CalendarContract.Calendars.CAL_ACCESS_CONTRIBUTOR &&
                         !owner.contains("#contacts@") && !owner.contains("#holiday@"),
+                    isHoliday = owner.contains("#holiday@") || name.contains("feiertag", true) ||
+                        name.contains("holiday", true),
                 )
             }
         }
@@ -303,7 +306,7 @@ fun birthdayEntries(list: List<Birthday>, from: LocalDate, to: LocalDate): List<
             val age = b.year?.let { year - it }?.takeIf { it in 0..130 }
             out += Entry(
                 key = "b${b.contactId}-$year-${b.name}",
-                title = "🎂 ${b.name}" + (age?.let { " ($it)" } ?: ""),
+                title = "${b.name} hat Geburtstag",
                 startDate = date, endDate = date, startTime = null, endTime = null,
                 color = COLOR_BIRTHDAY, source = SourceType.BIRTHDAY, sourceName = "Kontakt-Geburtstage",
                 contactId = b.contactId,
@@ -318,7 +321,7 @@ fun taskEntries(list: List<Task>, from: LocalDate, to: LocalDate, showDone: Bool
     list.filter { it.due != null && (showDone || !it.completed) && !it.due.isBefore(from) && !it.due.isAfter(to) }
         .map {
             Entry(
-                key = "t${it.id}", title = (if (it.completed) "☑ " else "☐ ") + it.title,
+                key = "t${it.id}", title = it.title,
                 startDate = it.due!!, endDate = it.due, startTime = null, endTime = null,
                 color = COLOR_TASK, source = SourceType.TASK, sourceName = it.listName,
                 description = it.body, completed = it.completed,

@@ -43,13 +43,12 @@ val DE: Locale = Locale.GERMANY
 val DAY_HEADER: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE, d. MMMM yyyy", DE)
 val SHORT_DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("EE, d. MMM", DE)
 
-private val SUNDAY_RED = Color(0xFFE53935)
+val SUNDAY_RED = Color(0xFFE53935)
 private val SATURDAY_BLUE = Color(0xFF1E88E5)
 
 @Composable
-private fun weekdayColor(d: DayOfWeek, default: Color): Color = when (d) {
+fun weekdayColor(d: DayOfWeek, default: Color): Color = when (d) {
     DayOfWeek.SUNDAY -> SUNDAY_RED
-    DayOfWeek.SATURDAY -> SATURDAY_BLUE
     else -> default
 }
 
@@ -144,115 +143,6 @@ private fun MiniMonth(ym: YearMonth, today: LocalDate, marks: Map<LocalDate, Int
                 }
             }
         }
-    }
-}
-
-// ================================================================ Monat
-
-@Composable
-fun MonthScreen(vm: MainViewModel, onEntry: (Entry) -> Unit) {
-    val month = vm.month
-    val first = month.atDay(1)
-    val gridStart = first.minusDays((first.dayOfWeek.value - 1).toLong())
-    val today = LocalDate.now()
-    val entries = vm.entries
-    val byDay = remember(entries, gridStart) {
-        (0 until 42).associate { i ->
-            val d = gridStart.plusDays(i.toLong())
-            d to entries.filter { it.occursOn(d) }.sortedForDay()
-        }
-    }
-    val weeks = if (gridStart.plusDays(35).month == month.month) 6 else if (gridStart.plusDays(28).month == month.month) 5 else 4
-    val cs = MaterialTheme.colorScheme
-
-    Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
-            DayOfWeek.values().forEach { dow ->
-                Text(
-                    dow.getDisplayName(TextStyle.SHORT, DE).removeSuffix("."),
-                    Modifier.weight(1f), fontSize = 12.sp,
-                    color = weekdayColor(dow, cs.onSurfaceVariant), textAlign = TextAlign.Center
-                )
-            }
-        }
-        Column(Modifier.padding(horizontal = 4.dp).swipe(month) { vm.step(it) }) {
-            for (w in 0 until weeks) {
-                Row(Modifier.fillMaxWidth().height(if (weeks == 6) 70.dp else 80.dp)) {
-                    for (dIdx in 0 until 7) {
-                        val day = gridStart.plusDays((w * 7 + dIdx).toLong())
-                        DayCell(
-                            day = day,
-                            inMonth = day.month == month.month,
-                            isToday = day == today,
-                            isSelected = day == vm.selectedDay,
-                            entries = byDay[day].orEmpty(),
-                            modifier = Modifier.weight(1f).fillMaxHeight(),
-                            onClick = {
-                                // wie Samsung: 1. Tipp wählt den Tag, 2. Tipp öffnet die Tagesansicht
-                                if (day == vm.selectedDay) vm.drillDown(CalView.DAY, day) else vm.select(day)
-                            }
-                        )
-                    }
-                }
-            }
-        }
-        HorizontalDivider(Modifier.padding(top = 4.dp))
-        val sel = vm.selectedDay
-        val list = byDay[sel] ?: vm.entriesOn(sel)
-        Text(
-            sel.format(DAY_HEADER), fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(start = 16.dp, top = 10.dp, bottom = 4.dp)
-        )
-        if (list.isEmpty()) {
-            Text("Keine Termine", color = cs.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp))
-        }
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 88.dp)) {
-            items(list, key = { it.key }) { e -> EntryRow(e, sel) { onEntry(e) } }
-        }
-    }
-}
-
-@Composable
-private fun DayCell(
-    day: LocalDate, inMonth: Boolean, isToday: Boolean, isSelected: Boolean,
-    entries: List<Entry>, modifier: Modifier, onClick: () -> Unit,
-) {
-    val cs = MaterialTheme.colorScheme
-    Column(
-        modifier
-            .padding(1.dp)
-            .clip(RoundedCornerShape(6.dp))
-            .then(if (isSelected) Modifier.border(1.5.dp, cs.primary, RoundedCornerShape(6.dp)) else Modifier)
-            .clickable(onClick = onClick)
-            .padding(2.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Box(
-            Modifier.size(22.dp).clip(CircleShape).background(if (isToday) cs.primary else Color.Transparent),
-            contentAlignment = Alignment.Center
-        ) {
-            val base = weekdayColor(day.dayOfWeek, cs.onSurface)
-            Text(
-                "${day.dayOfMonth}", fontSize = 12.sp,
-                fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
-                color = when {
-                    isToday -> cs.onPrimary
-                    !inMonth -> base.copy(alpha = 0.35f)
-                    else -> base
-                }
-            )
-        }
-        entries.take(3).forEach { e ->
-            Text(
-                e.title, maxLines = 1, overflow = TextOverflow.Clip, fontSize = 9.sp, lineHeight = 11.sp,
-                color = Color.White,
-                modifier = Modifier.fillMaxWidth().padding(top = 1.dp)
-                    .clip(RoundedCornerShape(3.dp))
-                    .background(Color(e.color).copy(alpha = if (inMonth) 1f else 0.45f))
-                    .padding(horizontal = 2.dp)
-            )
-        }
-        if (entries.size > 3) Text("+${entries.size - 3}", fontSize = 9.sp, lineHeight = 10.sp, color = cs.onSurfaceVariant)
     }
 }
 

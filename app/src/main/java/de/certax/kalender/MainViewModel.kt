@@ -32,7 +32,7 @@ class Prefs(context: Context) {
         get() = sp.getBoolean("tasks", true)
         set(v) = sp.edit().putBoolean("tasks", v).apply()
     var showDoneTasks: Boolean
-        get() = sp.getBoolean("tasks_done", false)
+        get() = sp.getBoolean("tasks_done", true)
         set(v) = sp.edit().putBoolean("tasks_done", v).apply()
     var lastView: CalView
         get() = runCatching { CalView.valueOf(sp.getString("view", "MONTH")!!) }.getOrDefault(CalView.MONTH)
@@ -104,6 +104,26 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val month: YearMonth get() = YearMonth.from(selectedDay)
 
     val writableCalendars: List<CalendarInfo> get() = calendars.filter { it.writable }
+    val holidayCalendarIds: Set<Long> get() = calendars.filter { it.isHoliday }.map { it.id }.toSet()
+
+    /** Suche in Terminen (1 Jahr zurück, 2 Jahre voraus), Geburtstagen und Aufgaben. */
+    suspend fun search(query: String): List<Entry> {
+        val q = query.trim()
+        if (q.length < 2) return emptyList()
+        val from = LocalDate.now().minusYears(1)
+        val to = LocalDate.now().plusYears(2)
+        val ids = calendars.map { it.id }.filter { it !in hidden }.toSet()
+        return withContext(Dispatchers.IO) {
+            val all = mutableListOf<Entry>()
+            if (hasCalendarPermission) all += repo.loadEvents(from, to, ids)
+            all += birthdayEntries(birthdays, LocalDate.now(), LocalDate.now().plusYears(1).minusDays(1))
+            all += taskEntries(tasks, from, to, true)
+            all.filter {
+                it.title.contains(q, true) || (it.location?.contains(q, true) == true) ||
+                    (it.description?.contains(q, true) == true)
+            }.sortedWith(compareBy({ it.startDate }, { it.startTime }))
+        }
+    }
 
     /** Standardkalender für neue Termine: zuletzt benutzt, sonst Samsung/Gerät, sonst Google. */
     fun defaultCalendarId(): Long? {

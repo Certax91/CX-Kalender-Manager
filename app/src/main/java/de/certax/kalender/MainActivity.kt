@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -69,7 +70,13 @@ class MainActivity : ComponentActivity() {
             val scheme = if (android.os.Build.VERSION.SDK_INT >= 31) {
                 if (dark) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)
             } else if (dark) darkColorScheme() else lightColorScheme()
-            MaterialTheme(colorScheme = scheme) { App(vm) }
+            // Samsung-Look: im dunklen Modus tiefschwarzer Hintergrund
+            val themed = if (dark) scheme.copy(
+                background = Color.Black, surface = Color.Black,
+                surfaceContainer = Color(0xFF1C1C1E), surfaceContainerLow = Color(0xFF121214),
+                surfaceContainerHigh = Color(0xFF26262A), surfaceVariant = Color(0xFF2A2A2E),
+            ) else scheme
+            MaterialTheme(colorScheme = themed) { App(vm) }
         }
     }
 }
@@ -85,7 +92,8 @@ private fun title(vm: MainViewModel): String {
     val d = vm.selectedDay
     return when (vm.view) {
         CalView.YEAR -> "${d.year}"
-        CalView.MONTH -> d.month.getDisplayName(TextStyle.FULL_STANDALONE, DE) + " " + d.year
+        CalView.MONTH -> d.month.getDisplayName(TextStyle.SHORT, DE).uppercase().removeSuffix(".") +
+            (if (d.year != LocalDate.now().year) " ${d.year}" else "")
         CalView.WEEK -> {
             val ws = weekStart(d)
             ws.format(DateTimeFormatter.ofPattern("MMM yyyy", DE)) + " · KW " + ws.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR)
@@ -103,6 +111,7 @@ fun App(vm: MainViewModel) {
     val scope = rememberCoroutineScope()
     val drawer = rememberDrawerState(DrawerValue.Closed)
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
+    var searchOpen by rememberSaveable { mutableStateOf(false) }
     var detail by remember { mutableStateOf<Entry?>(null) }
     var editing by remember { mutableStateOf<EventDraft?>(null) }
     var askedOnce by rememberSaveable { mutableStateOf(false) }
@@ -146,6 +155,19 @@ fun App(vm: MainViewModel) {
     // ------------------------------------------------ Editor (Vollbild)
     editing?.let { draft ->
         EventEditor(vm, draft, onClose = { editing = null })
+        return
+    }
+
+    // ------------------------------------------------ Suche
+    if (searchOpen) {
+        BackHandler { searchOpen = false }
+        SearchScreen(vm, onBack = { searchOpen = false }, onEntry = { detail = it })
+        detail?.let { e ->
+            DetailDialog(vm, e, onDismiss = { detail = null }, onEdit = { id ->
+                detail = null
+                scope.launch { vm.loadDraft(id)?.let { editing = it; searchOpen = false } }
+            })
+        }
         return
     }
 
@@ -198,13 +220,14 @@ fun App(vm: MainViewModel) {
     ) {
         Scaffold(
             topBar = {
-                TopAppBar(
+                CenterAlignedTopAppBar(
                     navigationIcon = {
                         IconButton(onClick = { scope.launch { drawer.open() } }) { Icon(Icons.Filled.Menu, "Menü") }
                     },
                     title = {
                         Text(
-                            title(vm), fontWeight = FontWeight.SemiBold, maxLines = 1,
+                            title(vm), fontWeight = FontWeight.Bold, maxLines = 1,
+                            fontSize = if (vm.view == CalView.MONTH || vm.view == CalView.YEAR) 26.sp else 20.sp,
                             modifier = Modifier.clickable(enabled = vm.view in setOf(CalView.MONTH, CalView.WEEK, CalView.DAY)) {
                                 // Tipp auf den Titel: eine Ebene höher (wie Samsung)
                                 when (vm.view) {
@@ -217,7 +240,8 @@ fun App(vm: MainViewModel) {
                         )
                     },
                     actions = {
-                        if (vm.view == CalView.TASKS || vm.view == CalView.LIST) {
+                        IconButton(onClick = { searchOpen = true }) { Icon(Icons.Filled.Search, "Suchen") }
+                        if (vm.view == CalView.TASKS) {
                             IconButton(onClick = { vm.reloadAll() }) { Icon(Icons.Filled.Refresh, "Neu laden") }
                         } else {
                             // „Heute“-Knopf mit dem heutigen Datum, wie im Samsung Kalender
@@ -228,13 +252,29 @@ fun App(vm: MainViewModel) {
                                 ) { Text("${LocalDate.now().dayOfMonth}", fontSize = 12.sp, fontWeight = FontWeight.Bold) }
                             }
                         }
-                        IconButton(onClick = { settingsOpen = true }) { Icon(Icons.Filled.Settings, "Einstellungen") }
                     }
                 )
             },
+            floatingActionButtonPosition = FabPosition.Center,
             floatingActionButton = {
                 if (vm.view != CalView.TASKS && vm.hasCalendarPermission) {
-                    FloatingActionButton(onClick = { newEvent() }) { Icon(Icons.Filled.Add, "Neuer Termin") }
+                    // Eingabeleiste unten wie im Samsung Kalender
+                    Surface(
+                        onClick = { newEvent() },
+                        shape = RoundedCornerShape(50),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        shadowElevation = 4.dp,
+                        modifier = Modifier.widthIn(min = 260.dp)
+                    ) {
+                        Row(Modifier.padding(start = 24.dp, end = 16.dp, top = 14.dp, bottom = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "Am " + vm.selectedDay.format(DateTimeFormatter.ofPattern("d. MMM", DE)) + " hinzufügen …",
+                                fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f, fill = false)
+                            )
+                            Spacer(Modifier.width(20.dp))
+                            Icon(Icons.Filled.Add, "Neuer Termin", modifier = Modifier.size(28.dp))
+                        }
+                    }
                 }
             }
         ) { pad ->
@@ -247,7 +287,7 @@ fun App(vm: MainViewModel) {
                     PermissionHint { openAppSettings(ctx) }
                 } else when (vm.view) {
                     CalView.YEAR -> YearScreen(vm)
-                    CalView.MONTH -> MonthScreen(vm) { detail = it }
+                    CalView.MONTH -> MonthScreen(vm)
                     CalView.WEEK -> {
                         val ws = weekStart(vm.selectedDay)
                         TimelineScreen(vm, (0..6).map { ws.plusDays(it.toLong()) }, { detail = it }) { d, h -> newEvent(d, h) }
